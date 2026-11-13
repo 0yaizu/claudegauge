@@ -2,7 +2,7 @@ name: Release
 
 # GitHub でリリース (pre-release を含む) を公開したときに、ビルドして、そのリリースに zip を添付する。
 # リリースノートは、リリースを作るときに手動で用意する。
-#   安定版: v0.1.0 / 先行版: pre-v0.0.1, beta-v0.0.1
+#   安定版: v0.1.0 / プレビュー版: pre-v0.0.1, beta-v0.0.1
 on:
   release:
     types: [published]
