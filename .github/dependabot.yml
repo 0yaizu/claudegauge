@@ -1,0 +1,11 @@
+# ワークフローで使う Action は、コミットの SHA で固定している。
+# 新しいバージョンが出たら、SHA を更新する pull request を作る。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # 公開されてすぐの版は提案しない (配布元のアカウントが乗っ取られた場合に、すぐ取り込まないため)。
+    cooldown:
+      default-days: 7

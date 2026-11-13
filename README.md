@@ -14,8 +14,18 @@ Claudeの使用状況をメニューバーに表示する、macOS用の小さな
 
 ## 動作環境
 
+- Apple Siliconを搭載したMac
 - macOS 26以降
 - ログイン済のClaude Code CLI（v2.1.323で動作確認済）
+
+## インストール
+### 自前ダウンロード
+1. [Releases](https://github.com/0yaizu/claudegauge/releases/latest)から`ClaudeGauge-*.zip`をダウンロードします。
+2. zipを展開し、`ClaudeGauge.app`を`/Applications`に移動します。
+3. `ClaudeGauge.app`を開きます。
+
+> [!NOTE]
+> 署名を受けていないアプリなので、初回起動時、起動を阻止される可能性があります。「システム設定」の「プライバシーとセキュリティ」から「このまま開く」を選んでください。
 
 ## 開発環境、ビルド、テスト
 - Xcode
@@ -45,6 +55,7 @@ ClaudeGaugeは、`/usr/bin/security`コマンドを経由してKeychainを読み
 ## 今後の予定
 
 - モデル別の使用上限や追加クレジットの使用状況の表示
+- 自動アップデート確認、自動アップデート
 - 表示内容のカスタム設定
 - 詳細設定画面の追加
 - Windows版の作成
