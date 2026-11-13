@@ -1,0 +1,91 @@
+import ClaudeGaugeCore
+import SwiftUI
+
+struct PopoverView: View {
+    @ObservedObject var model: AppModel
+    @State private var showsSettings = false
+
+    var body: some View {
+        // 残り時間と Reload の可否は時間で変わるので、30 秒ごとに描き直す。
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            content(now: context.date)
+        }
+        .padding(16)
+        .frame(width: 380)
+        // 設定の開閉などで中身の高さが変わったとき、ウィンドウも中身に合わせて伸び縮みさせる。
+        .fitsWindowToContent()
+        // システム設定側で変えられたログイン項目の状態に、開くたび追従する。
+        .onAppear { model.refreshLoginItemStatus() }
+        // 閉じたあとに開き直したときは、設定パネルを閉じた状態から始める。
+        .onWindowHidden { showsSettings = false }
+    }
+
+    private func content(now: Date) -> some View {
+        // 前回の値を使う。ただしリセット時刻を過ぎた枠は「—」にする。
+        let snapshot = model.state.snapshot?.activeWindows(at: now)
+        return VStack(alignment: .leading, spacing: 16) {
+            WindowRowView(row: .make(
+                title: "5h session", usage: snapshot?.fiveHour,
+                windowLength: WindowForecast.fiveHourLength, now: now
+            ))
+            WindowRowView(row: .make(
+                title: "Weekly", usage: snapshot?.weekly,
+                windowLength: WindowForecast.weeklyLength, now: now
+            ))
+            Divider()
+            if showsSettings {
+                SettingsView(model: model)
+                Divider()
+            }
+            footer(now: now)
+        }
+    }
+
+    private func footer(now: Date) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                if model.state.showsRefreshNotice {
+                    Text(DisplayFormatter.tokenExpiredNotice)
+                        .foregroundStyle(.orange)
+                }
+                Text(lastUpdatedText(now: now))
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+
+            Spacer(minLength: 8)
+
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    Button {
+                        Task { await model.reload() }
+                    } label: {
+                        Label("Reload", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(!canReload(now: now))
+
+                    Button {
+                        showsSettings.toggle()
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+
+                    Button("Quit") { NSApplication.shared.terminate(nil) }
+                        .keyboardShortcut("q")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+            }
+        }
+    }
+
+    private func lastUpdatedText(now: Date) -> String {
+        guard let snapshot = model.state.snapshot else { return "No data yet" }
+        return DisplayFormatter.lastUpdated(snapshot.fetchedAt, now: now)
+    }
+
+    private func canReload(now: Date) -> Bool {
+        !model.isReloading && RefreshPolicy.canReload(lastAttemptAt: model.state.lastAttemptAt, now: now)
+    }
+}
