@@ -14,8 +14,6 @@
 
 {{HIGHLIGHTS}}
 
----
-
 ## 📦 インストール
 
 1. 下の「Assets」から `ClaudeGauge-{{TAG}}.zip` をダウンロードして展開し、`ClaudeGauge.app` を `/Applications` に移動します。
