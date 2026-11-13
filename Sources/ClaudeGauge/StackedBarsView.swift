@@ -24,7 +24,7 @@ struct StackedBarsView: View {
                 Capsule()
                     .fill(ring.level.color)
                     .mask(alignment: .leading) {
-                        Rectangle().frame(width: Self.width * ring.fraction)
+                        Capsule().frame(width: Self.width * ring.fraction)
                     }
             }
         }

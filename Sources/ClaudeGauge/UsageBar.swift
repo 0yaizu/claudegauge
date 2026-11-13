@@ -12,6 +12,7 @@ extension UsageLevel {
 }
 
 /// 横棒グラフ。塗りは幅を変えず、位置 (transform) をずらして伸び縮みさせる。
+/// 塗りは全長のカプセルで、ずらして見える部分を切り取る。右端は丸く、左端は棒の丸い端に沿う。
 struct UsageBar: View {
     let fraction: Double
     let level: UsageLevel
@@ -25,7 +26,7 @@ struct UsageBar: View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 Capsule().fill(.quaternary)
-                Rectangle()
+                Capsule()
                     .fill(level.color)
                     .offset(x: -(1 - fraction) * proxy.size.width)
                     .animation(reduceMotion ? nil : Self.easeOut, value: fraction)
