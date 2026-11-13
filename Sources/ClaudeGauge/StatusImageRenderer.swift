@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// MenuBarExtra のラベルは Shape を直接描けないため、SwiftUI の View を画像にして渡す。
+/// ステータス項目のボタンには画像しか渡せないため、SwiftUI の View (ドーナツや横棒) を画像にする。
 /// 色付き (輪を警告色で塗る) なのでテンプレート画像にはしない。
 @MainActor
 enum StatusImageRenderer {

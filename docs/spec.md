@@ -76,7 +76,7 @@ Claude Code stores its OAuth credentials; ClaudeGauge only reads them.
 
 `expired = expiresAt < now + 5 minutes`. The margin covers a token that would expire mid-request.
 
-When expired (or on 401/403) the popover shows **"Open Claude Code once to refresh"**.
+When expired (or on 401/403) the details panel shows **"Open Claude Code once to refresh"**.
 No other failure has special text; the last good values and `Last updated HH:mm` stay visible.
 
 ## 4. Forecast
@@ -111,7 +111,7 @@ The thresholds are `minimumElapsedRatio = 0.03` and `reliableElapsedRatio = 0.1`
 ## 5. Refresh schedule
 
 Data changes only on a manual **Reload** or on the scheduled auto-refresh. Launching the app, waking
-from sleep, or opening the popover does not fetch by itself; a fetch happens only when the scheduled
+from sleep, or opening the details panel does not fetch by itself; a fetch happens only when the scheduled
 time (below) has come, including right after a sleep that outlasted it.
 
 - Auto-refresh interval: 1, 3, 5 or 10 minutes (default 3). Stored values are clamped to 60–600 s.
@@ -159,7 +159,7 @@ All text is English.
   wallpaper, not on the system appearance).
 - An expired or missing window shows `—`.
 
-### 7.2 Popover
+### 7.2 Details panel
 
 One row per window (5h session, Weekly):
 
@@ -170,7 +170,20 @@ Resets at 21:40 (3h30m remain)
 ```
 
 plus `Last updated HH:mm`, the refresh notice when needed, a Reload button, a settings toggle, and Quit.
-Settings (inline in the popover): menu bar style, show percentages, refresh interval, launch at login.
+Settings (inline in the same panel): menu bar style, show percentages, refresh interval, launch at login.
+
+Implementation notes (macOS):
+
+- Host the panel as a custom view inside a **menu** attached to the status item, not as a separate
+  window or popover. With "Automatically hide and show the menu bar" enabled, the menu bar (and the icon)
+  hides once the pointer is more than roughly 130–160 pt below the top of the screen. A window or a
+  popover hides it as soon as the user moves down to the panel's buttons; a menu keeps it visible for
+  as long as it is open.
+- Controls that open their own pop-up menu (a pop-up button) do not open inside a menu item view. Use
+  segmented controls for the refresh interval.
+- A menu fixes the size of an item view when it opens. When the content height changes (the settings
+  area opens or closes), update the view's size and tell the menu to update.
+- Rebuild the panel every time the menu closes, so the settings area is always closed the next time.
 
 ## 8. Persistence
 

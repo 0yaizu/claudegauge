@@ -12,12 +12,11 @@ struct PopoverView: View {
         }
         .padding(16)
         .frame(width: 380)
-        // 設定の開閉などで中身の高さが変わったとき、ウィンドウも中身に合わせて伸び縮みさせる。
-        .fitsWindowToContent()
+        // メニューの項目のウィンドウは、キーウィンドウにならない。そのままだと、コントロールが
+        // 「非アクティブ」の見た目 (選択色が青でなく灰色、ボタンが白っぽい灰色) で描かれてしまう。
+        .environment(\.controlActiveState, .key)
         // システム設定側で変えられたログイン項目の状態に、開くたび追従する。
         .onAppear { model.refreshLoginItemStatus() }
-        // 閉じたあとに開き直したときは、設定パネルを閉じた状態から始める。
-        .onWindowHidden { showsSettings = false }
     }
 
     private func content(now: Date) -> some View {
@@ -75,7 +74,7 @@ struct PopoverView: View {
                         .keyboardShortcut("q")
                 }
                 .buttonStyle(.glass)
-                .controlSize(.small)
+                .controlSize(.regular)
             }
         }
     }
