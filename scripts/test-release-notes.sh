@@ -171,7 +171,7 @@ assert_eq "highlights: 最大 8 件" "8" "$count"
 out="$(hl '{"highlights":[{"kind":"fix","text":"{{TAG}} と {{COMPARE_LINK}}"}]}')"
 assert_has "highlights: テンプレートの記号はそのまま通す" "$out" "{{TAG}} と {{COMPARE_LINK}}"
 
-assert_eq "highlights: 空配列" "- 利用者に見える変更はありません。" "$(hl '{"highlights":[]}')"
+assert_eq "highlights: 空配列は軽微な修正の 1 行" "- 軽微な修正をしました。" "$(hl '{"highlights":[]}')"
 assert_eq "highlights: 空文字は生成失敗の扱い" \
   "- ⚠️ ハイライトを自動で作れませんでした。公開する前に、ここへ手で書いてください。" "$(hl '')"
 assert_eq "highlights: 壊れた JSON は生成失敗の扱い" \
