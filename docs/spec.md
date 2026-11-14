@@ -1,167 +1,132 @@
-# ClaudeGauge specification
+# ClaudeGauge仕様書
 
-Behavior shared by every ClaudeGauge implementation (macOS today, Windows later).
-The macOS code in `Sources/ClaudeGaugeCore` is the reference; this document records the rules so a
-port does not have to read Swift. Where the two disagree, fix the code or this file, not just one.
+ClaudeGaugeのすべての実装(今はmacOS、将来はWindows)が共通して守る挙動を定めます。
+基準となる実装は`Sources/ClaudeGaugeCore`のmacOS版のコードです。この文書は、移植する人がSwiftを読まなくてもよいように、そのルールを記録したものです。
+コードとこの文書が食い違うときは、どちらか片方だけを直さず、両方をそろえます。
 
-## 1. Data source
+## 1. データ源
 
-ClaudeGauge shows the usage limits of a Claude subscription (the 5-hour session and the weekly limit).
+ClaudeGaugeはClaudeのサブスクリプションの使用上限(5時間のセッションと週間の上限)を表示します。
 
 ```
 GET https://api.anthropic.com/api/oauth/usage
-Authorization: Bearer <Claude Code OAuth access token>
+Authorization: Bearer <Claude CodeのOAuthアクセストークン>
 anthropic-beta: oauth-2025-04-20
 ```
 
-- **Unofficial and undocumented.** This is the endpoint Claude Code itself uses. It can change or
-  disappear without notice, and Anthropic's terms may restrict using Claude Code's token from another
-  app. Check the current terms before distributing a build.
-- Timeout 10 s. No redirects are followed. No cookies, no cache (`reloadIgnoringLocalCacheData`).
-- Decoding is lenient: unknown keys are ignored, and a field with an unexpected shape becomes
-  "absent" instead of failing the whole response.
+- 非公式で、仕様が公開されていないエンドポイントです。Claude Code自身が使っています。予告なく変更されたり、なくなったりすることがあります。また、Claude Codeのトークンを別のアプリから使うことは、Anthropicの利用規約で制限されている可能性があります。ビルドを配布する前に、最新の規約を確認してください。
+- タイムアウトは10秒です。リダイレクトは追いません。クッキーもキャッシュも使いません(`reloadIgnoringLocalCacheData`)。
+- デコードは寛容にします。知らないキーは無視し、形が想定と違うフィールドは、レスポンス全体を失敗にせず、「なし」として扱います。
 
-### 1.1 Response fields used
+### 1.1 使うレスポンスのフィールド
 
-| Field | Meaning |
+| フィールド | 意味 |
 | --- | --- |
-| `five_hour.utilization` | Percent used (0–100, may exceed 100) of the 5-hour session. |
-| `five_hour.resets_at` | ISO 8601 reset time. `null` when the window has not started. |
-| `seven_day.utilization` / `.resets_at` | Same, for the weekly limit. |
-| `limits[]` with `kind == "weekly_scoped"` | Per-model weekly limit. `scope.model.display_name`, `percent`, `resets_at`. |
-| `seven_day_breakdown.rows[]` | Weekly consumption by surface: `key`, `display_name`, `percent`. |
+| `five_hour.utilization` | 5時間のセッションの使用率(パーセント。0〜100。100を超えることがあります)。 |
+| `five_hour.resets_at` | ISO 8601形式のリセット時刻。枠がまだ始まっていないときは`null`です。 |
+| `seven_day.utilization` / `.resets_at` | 週間の上限の、同じ値。 |
+| `limits[]`の`kind == "weekly_scoped"` | モデル別の週間の上限。`scope.model.display_name`、`percent`、`resets_at`。 |
+| `seven_day_breakdown.rows[]` | 利用の場面ごとの週間の消費量。`key`、`display_name`、`percent`。 |
 
-Everything else (`extra_usage`, `pace`, `weekly_scoped_shares`, …) is ignored for now.
+それ以外(`extra_usage`、`pace`、`weekly_scoped_shares`など)は、今は無視します。
 
-- `resets_at` carries fractional seconds and a `+00:00` offset, e.g. `2026-11-11T10:59:59.901678+00:00`.
-  Parse with and without fractional seconds. The API reports a boundary at `:59:59.9`, so **round the
-  displayed reset time to the nearest minute** (`10:59:59.9` → `11:00`).
-- `seven_day_breakdown.rows[].percent` is a **share of total consumption** (sums to 100), not a
-  percent of a limit.
-- A `200` whose body has neither `five_hour.utilization` nor `seven_day.utilization` is treated as an
-  invalid response (not as "0%"), so the previous good value is never overwritten with an empty one.
+- `resets_at`は、小数秒と`+00:00`のオフセットを含みます(例: `2026-11-11T10:59:59.901678+00:00`)。小数秒のある形と、ない形の両方を読めるようにします。APIは枠の境目を`:59:59.9`で返すので、表示するリセット時刻は最も近い分に丸めます(`10:59:59.9` → `11:00`)。
+- `seven_day_breakdown.rows[].percent`は、上限に対する使用率ではなく、全体の消費量に占める割合です(合計が100になります)。
+- 本文に`five_hour.utilization`も`seven_day.utilization`もない`200`は、「0%」ではなく、不正なレスポンスとして扱います。これにより、前回の正しい値が、空の値で上書きされることはありません。
 
-### 1.2 Status codes
+### 1.2 ステータスコード
 
-| Status | Result |
+| ステータス | 結果 |
 | --- | --- |
-| 200 | Success (subject to the check above). |
-| 401, 403 | `unauthorized` → show the refresh notice (§3). |
-| 429 | `rateLimited` → back off (§5). |
-| 5xx | `server`. |
-| other / transport error | `unexpectedStatus` / `network`. |
+| 200 | 成功(上の確認を満たす場合)。 |
+| 401、403 | `unauthorized`。更新の案内を表示します(3章)。 |
+| 429 | `rateLimited`。間隔を延ばします(5章)。 |
+| 5xx | `server`。 |
+| その他のステータス、通信エラー | `unexpectedStatus`、`network`。 |
 
-Errors carry only the case and the status code. Never include the body or the token.
+エラーが持つのは、種類とステータスコードだけです。本文やトークンを含めてはいけません。
 
-## 2. Credentials
+## 2. 認証情報
 
-Claude Code stores its OAuth credentials; ClaudeGauge only reads them.
+OAuthの認証情報は、Claude Codeが保存します。ClaudeGaugeは読むだけです。
 
-- macOS: Keychain generic password, service `Claude Code-credentials`, account = the current user name,
-  read with `/usr/bin/security find-generic-password -a <user> -s "Claude Code-credentials" -w`
-  (15 s timeout; on timeout SIGTERM, then SIGKILL after 2 s). Pass the child only `PATH`, `HOME` and
-  `USER` in its environment, and stop it if its output exceeds 1 MiB. The command result (stdout) must
-  not be printable: redact it in descriptions and reflection.
-- The output is JSON, or the same JSON as a hex string (when it contains non-printable bytes).
-- Use **only** `claudeAiOauth.accessToken` and `claudeAiOauth.expiresAt`.
-  `expiresAt` ≥ 1e11 is milliseconds, otherwise seconds.
-- The same item also holds credentials of other MCP servers (`mcpOAuth`). They must never be decoded
-  into a model type, kept, logged, or persisted.
-- **Never use the refresh token and never refresh.** Refreshing from a second app can invalidate the
-  token Claude Code holds. When the token is (nearly) expired the app does not call the API and asks
-  the user to open Claude Code instead (§3).
-- Read the credentials on every fetch; do not keep the token in memory or on disk between fetches.
+- macOS: Keychainの汎用パスワードで、サービスは`Claude Code-credentials`、アカウントは現在のユーザー名です。`/usr/bin/security find-generic-password -a <user> -s "Claude Code-credentials" -w`で読みます(タイムアウトは15秒。超えたらSIGTERMを送り、2秒後にSIGKILLを送ります)。子プロセスに渡す環境変数は`PATH`、`HOME`、`USER`だけにし、出力が1MiBを超えたら止めます。コマンドの結果(標準出力)がそのまま表示されてはいけません。説明やリフレクションでは、伏せ字にします。
+- 出力はJSONです。表示できないバイトを含むときは、同じJSONを16進数の文字列にしたものになります。
+- 使うのは、`claudeAiOauth.accessToken`と`claudeAiOauth.expiresAt`だけです。`expiresAt`は、1e11以上ならミリ秒、それ未満なら秒です。
+- 同じ項目には他のMCPサーバーの認証情報(`mcpOAuth`)も入っています。これらを、モデルの型に読み込んだり、保持したり、ログに出したり、保存したりしてはいけません。
+- リフレッシュトークンを使ってはいけません。トークンの更新もしてはいけません。別のアプリから更新すると、Claude Codeが持つトークンを無効にするおそれがあるためです。トークンが期限切れ(または期限切れ間近)のときは、APIを呼ばず、代わりに、Claude Codeを開くようユーザーに案内します(3章)。
+- 認証情報は取得のたびに読みます。取得と取得の間に、トークンをメモリにもディスクにも残してはいけません。
 
-## 3. Token expiry
+## 3. トークンの期限
 
-`expired = expiresAt < now + 5 minutes`. The margin covers a token that would expire mid-request.
+`expired = expiresAt < now + 5 minutes`(5分の余裕を持たせます)。この余裕は、リクエストの途中で期限が切れるトークンに備えるためのものです。
 
-When expired (or on 401/403) the details panel shows **"Open Claude Code once to refresh"**.
-No other failure has special text; the last good values and `Last updated HH:mm` stay visible.
+期限切れのとき(または401と403のとき)、詳細パネルに`Open Claude Code once to refresh`と表示します。ほかの失敗には、専用の文言がありません。最後に取得できた値と`Last updated HH:mm`は、表示したままにします。
 
-## 4. Forecast
+## 4. 予測
 
-Linear extrapolation of the current pace over a window of known length.
+長さの決まった枠で、現在のペースを直線で延ばして予測します。
 
-- Window lengths: 5 h session = 5 × 3600 s, weekly = 7 × 24 × 3600 s.
-- `windowStart = resetsAt − length`, `elapsed = clamp(now − windowStart, 0, length)`,
-  `ratio = elapsed / length`.
-- If `resetsAt` is absent (window not started) there is no forecast → `Forecast: —`.
+- 枠の長さ: 5時間のセッション = 5 × 3600秒、週間 = 7 × 24 × 3600秒。
+- `windowStart = resetsAt − length`、`elapsed = clamp(now − windowStart, 0, length)`、`ratio = elapsed / length`。
+- `resetsAt`がない(枠が始まっていない)ときは、予測はありません。`Forecast: —`と表示します。
 
-| Condition | Result |
+| 条件 | 結果 |
 | --- | --- |
-| `utilization ≥ 100` | reached (a fact, not a forecast) |
-| `ratio < 0.03` | `Forecast: measuring` (too early to be meaningful) |
-| `0.03 ≤ ratio < 0.1` | **rough** forecast: `Forecast: ~141%` |
+| `utilization ≥ 100` | 到達済み(予測ではなく事実) |
+| `ratio < 0.03` | `Forecast: measuring`(意味のある値を出すには早すぎる) |
+| `0.03 ≤ ratio < 0.1` | 概算の予測: `Forecast: ~141%` |
 | `ratio ≥ 0.1` | `Forecast: 141%` |
 
-For the last two rows, `projected = utilization × length / elapsed`.
-The thresholds are `minimumElapsedRatio = 0.03` and `reliableElapsedRatio = 0.1`
-(weekly: about 5 h and 16.8 h after the reset; 5h session: 9 min and 30 min).
+表の最後の2行では、`projected = utilization × length / elapsed`です。しきい値は`minimumElapsedRatio = 0.03`と`reliableElapsedRatio = 0.1`です(週間はリセットの約5時間後と16.8時間後、5時間のセッションは9分後と30分後)。
 
-- `projected` is shown as is, **not capped at 100%** (`Forecast: 120%`).
-- If `projected > 100`, the time the pace reaches 100% is
-  `now + (100 − utilization) × elapsed / utilization`, shown as `(100% at HH:mm)` next to the forecast.
-  It is shown only when 100% is reached before the reset, and **not while the forecast is rough**
-  (an early, unreliable number should not raise an alarm).
-- The window is a warning (`isWarning`) when 100% is reached, or will be (with a reliable forecast),
-  before the reset.
-- A rough forecast has the same color as any other; only the `~` marks it.
+- `projected`は、100%で頭打ちにせず、そのまま表示します(`Forecast: 120%`)。
+- `projected > 100`のとき、このペースで100%に達する時刻は`now + (100 − utilization) × elapsed / utilization`で、予測の横に`(100% at HH:mm)`と表示します。表示するのは、リセットより前に100%に達する場合だけです。予測が概算のあいだは表示しません(序盤の不確かな数字で、警告を出さないため)。
+- 枠が警告(`isWarning`)になるのは、リセットより前に、100%に達しているとき、または(予測が確かなときに)達する見込みのときです。
+- 概算の予測もほかの予測と同じ色で表示します。目印は`~`だけです。
 
-## 5. Refresh schedule
+## 5. 更新のスケジュール
 
-Data changes only on a manual **Reload** or on the scheduled auto-refresh. Launching the app, waking
-from sleep, or opening the details panel does not fetch by itself; a fetch happens only when the scheduled
-time (below) has come, including right after a sleep that outlasted it.
+データが変わるのは、手動のReloadと、予定された自動更新のときだけです。アプリの起動、スリープからの復帰、詳細パネルを開くことは、それだけでは取得を起こしません。取得は、下で決める予定の時刻が来たときにだけ行います。スリープが予定の時刻より長く続いた場合は、復帰した直後に行います。
 
-- Auto-refresh interval: 1, 3, 5 or 10 minutes (default 3). Stored values are clamped to 60–600 s.
-- Next fetch = `lastAttemptAt + interval`. `lastAttemptAt` is the time of the last attempt, successful
-  or not, and survives restarts. If it is already past on launch, fetch immediately; otherwise wait for
-  the remainder. If the clock moved backwards (attempt in the future), wait at most one interval.
-- Reload is refused when the last attempt was less than **60 s** ago (also across restarts).
-- Backoff: the interval is `base × 2^n`, capped at 30 min, where `n` = consecutive `429`s +
-  consecutive failures to read the credentials (Keychain locked, access denied, timeout). Each of the
-  two counts is capped at 10, so a tampered stored value cannot overflow. Any success resets both.
-  A failure that proves the credentials were read (expired token, API error) resets the credentials
-  count. The 429 count survives restarts; the credentials count does not.
-- Backoff applies only to the schedule. A manual Reload ignores it (only the 60 s cooldown applies), so
-  a user who has just granted Keychain access can retry immediately. A success resets the backoff.
-- Changing the interval recomputes the remaining wait from `lastAttemptAt`.
-- Record `lastAttemptAt` when an attempt **starts**, not when it ends. Otherwise a schedule recomputed
-  during a slow attempt sees a stale time, computes a wait of zero, and loops without sleeping.
-- Only one fetch runs at a time.
+- 自動更新の間隔は1、3、5、10分のどれかです(初期値は3分)。保存された値は60〜600秒に収めます。
+- 次の取得の時刻は`lastAttemptAt + interval`です。`lastAttemptAt`は、成功か失敗かを問わず、最後に試みた時刻で、再起動しても引き継ぎます。起動した時点で、その時刻をすでに過ぎていれば、すぐ取得します。過ぎていなければ、残りの時間だけ待ちます。時計が戻っていて、試行の時刻が未来になっているときは、待つのは、長くても1つの間隔までです。
+- 最後の試行から60秒たっていないとき、Reloadは受け付けません(再起動をまたいでも同じです)。
+- バックオフ: 間隔は`base × 2^n`で、上限は30分です。`n`は、連続した`429`の回数と、認証情報を読めなかった連続の回数(Keychainのロック、アクセスの拒否、タイムアウト)の合計です。2つの回数はそれぞれ10回までに収めます。保存された値が書き換えられても、あふれないようにするためです。成功すると、両方をリセットします。認証情報を読めたことが分かる失敗(期限切れのトークン、APIのエラー)は、認証情報の回数をリセットします。429の回数は再起動をまたいで引き継ぎますが、認証情報の回数は引き継ぎません。
+- バックオフが効くのは、スケジュールだけです。手動のReloadはバックオフを無視します(60秒のクールダウンだけが効きます)。そのため、Keychainへのアクセスを許可した直後のユーザーが、すぐに再試行できます。成功すると、バックオフはリセットされます。
+- 間隔を変えると、`lastAttemptAt`から、残りの待ち時間を計算し直します。
+- `lastAttemptAt`は、試行が終わったときではなく、始まったときに記録します。終わったときに記録すると、遅い試行の間にスケジュールを計算し直したとき、古い時刻を見て、待ち時間を0と計算し、休まずに繰り返します。
+- 同時に動かす取得は1つだけです。
 
-## 6. Reset handling
+## 6. リセットの扱い
 
-A window whose `resetsAt ≤ now` is **expired**: its stored utilization is stale, so show it as `—`.
-5h and weekly are judged independently. When the weekly window is expired, its breakdown and scoped
-limits are hidden too. A window with no `resetsAt` is never expired. `Last updated` still shows the
-last successful fetch time. The UI switches to `—` at the reset moment (schedule a tick at the earliest
-upcoming `resetsAt`), without waiting for the next fetch.
+- `resetsAt ≤ now`の枠は、期限切れ(expired)です。保存した使用率が古くなっているので、`—`と表示します。
+- 5時間と週間は、別々に判定します。週間の枠が期限切れのときは、その内訳とモデル別の上限も隠します。
+- `resetsAt`のない枠は、期限切れになりません。
+- `Last updated`には、最後に取得に成功した時刻をそのまま表示します。
+- 画面は次の取得を待たずに、リセットの時刻に`—`へ切り替えます(直近の`resetsAt`の時刻に、タイマーを設定します)。
 
-## 7. Display rules
+## 7. 表示のルール
 
-All text is English.
+アプリに表示する文字はすべて英語です。
 
-- **Percent**: rounded to the nearest integer (`42.5` → `43%`). Non-finite or absurd values → `—`.
-- **Level colors**: green `< 70`, yellow `70 ≤ p < 90`, red `≥ 90`.
-- **Remaining time**: at most two units: `3h30m`, `6d3h`, `2h`, `45m`, `<1m`.
-- **Clock**: `HH:mm` (24 h). If the date differs from today: `M/D HH:mm` (`11/12 06:59`).
-- **Reset line**: `Resets at 21:40 (3h30m remain)`.
-- **Last updated**: `Last updated 19:35`.
+- パーセント: 最も近い整数に丸めます(`42.5` → `43%`)。有限でない値や、あり得ない値は`—`にします。
+- レベルの色: 緑は`< 70`、黄は`70 ≤ p < 90`、赤は`≥ 90`。
+- 残り時間: 単位は最大2つまでです(`3h30m`、`6d3h`、`2h`、`45m`、`<1m`)。
+- 時刻: `HH:mm`(24時間制)。日付が今日と違うときは`M/D HH:mm`(`11/12 06:59`)。
+- リセットの行: `Resets at 21:40 (3h30m remain)`。
+- 最終更新: `Last updated 19:35`。
 
-### 7.1 Menu bar
+### 7.1 メニューバー
 
-- Default: a nested donut (outer ring = 5h, inner ring = weekly), then two lines of text
-  (top = 5h percent, bottom = weekly percent).
-- Alternative style "Bars": two horizontal bars instead of the donut.
-- The percent text can be turned off. Its color is fixed white (the menu bar background depends on the
-  wallpaper, not on the system appearance).
-- An expired or missing window shows `—`.
+- 初期の表示: 入れ子のドーナツ(外側の輪が5時間、内側の輪が週間)の次に、2行の文字を表示します(上が5時間のパーセント、下が週間のパーセント)。
+- もう1つの表示「Bars」: ドーナツの代わりに、横棒を2本表示します。
+- パーセントの文字は消せます。文字の色は白に固定です(メニューバーの背景は、システムの外観ではなく、壁紙で決まるため)。
+- 期限切れの枠、または値のない枠は、`—`と表示します。
 
-### 7.2 Details panel
+### 7.2 詳細パネル
 
-One row per window (5h session, Weekly):
+枠ごとに1行を表示します(5時間のセッション、週間)。
 
 ```
 5h session        60%   Forecast: 120% (100% at 21:40)
@@ -169,37 +134,27 @@ One row per window (5h session, Weekly):
 Resets at 21:40 (3h30m remain)
 ```
 
-plus `Last updated HH:mm`, the refresh notice when needed, a Reload button, a settings toggle, and Quit.
-Settings (inline in the same panel): menu bar style, show percentages, refresh interval, launch at login.
+これに加えて、`Last updated HH:mm`、必要なときの更新の案内、Reloadボタン、設定の切り替え、Quitを表示します。設定は同じパネルの中にまとめて表示します。項目はメニューバーの表示形式、パーセントの表示、更新の間隔、ログイン時の起動です。
 
-Implementation notes (macOS):
+実装の注意(macOS)は、次のとおりです。
 
-- Host the panel as a custom view inside a **menu** attached to the status item, not as a separate
-  window or popover. With "Automatically hide and show the menu bar" enabled, the menu bar (and the icon)
-  hides once the pointer is more than roughly 130–160 pt below the top of the screen. A window or a
-  popover hides it as soon as the user moves down to the panel's buttons; a menu keeps it visible for
-  as long as it is open.
-- Controls that open their own pop-up menu (a pop-up button) do not open inside a menu item view. Use
-  segmented controls for the refresh interval.
-- A menu fixes the size of an item view when it opens. When the content height changes (the settings
-  area opens or closes), update the view's size and tell the menu to update.
-- Rebuild the panel every time the menu closes, so the settings area is always closed the next time.
+- パネルは別のウィンドウやポップオーバーではなく、ステータス項目に付けたメニューの中に、独自のビューとして載せます。「メニューバーを自動的に隠す/表示」を有効にしていると、ポインターが画面の上端から、およそ130〜160pt以上下がった時点で、メニューバー(とアイコン)が隠れます。ウィンドウやポップオーバーでは、ユーザーがパネルのボタンまでポインターを下ろした時点で隠れます。メニューは開いているあいだ、表示を保ちます。
+- 独自のポップアップメニューを開くコントロール(ポップアップボタン)は、メニュー項目のビューの中では開きません。更新の間隔にはセグメントのコントロールを使います。
+- メニューは開いた時点で、項目のビューの大きさを固定します。内容の高さが変わったとき(設定の領域を開閉したとき)は、ビューの大きさを更新し、メニューにも更新を伝えます。
+- メニューを閉じるたびに、パネルを作り直します。次に開いたとき、設定の領域が必ず閉じた状態になるようにするためです。
 
-## 8. Persistence
+## 8. 保存
 
-The only thing stored is non-secret state, so the app can start without a fetch:
+保存するのは、秘密ではない状態だけです。これにより、アプリは取得なしで起動できます。
 
-- last snapshot (percentages, reset times, breakdown, fetch time), `lastAttemptAt`, consecutive 429
-  count, and the user's settings.
-- Never store a token, an expiry, or any Keychain content. The failure kind is not stored either.
-- A corrupted stored value is ignored (treated as "nothing stored").
+- 最後のスナップショット(使用率、リセット時刻、内訳、取得時刻)、`lastAttemptAt`、連続した429の回数、ユーザーの設定。
+- トークン、期限、Keychainの中身は、保存してはいけません。失敗の種類も保存しません。
+- 壊れた保存値は無視します(「保存なし」として扱います)。
 
-macOS: `UserDefaults`, key `lastUsage` (JSON).
+macOS: `UserDefaults`のキー`lastUsage`(JSON)。
 
-## 9. Not in the MVP
+## 9. MVPに含めないこと
 
-- Weekly breakdown (Claude Code / Chats / Cowork). Parsed already; no UI.
-- Per-model weekly limits (e.g. a model-specific cap). Parsed already; no UI.
-- Windows implementation: only §2 (where Claude Code keeps its credentials) and the UI layer need
-  platform-specific work; the rest of this document is meant to apply unchanged. Verify the Windows
-  credential location before starting.
+- 週間の内訳(Claude Code / Chats / Cowork)。読み取りは実装済みで、画面はありません。
+- モデル別の週間の上限(例: 特定のモデルだけの上限)。読み取りは実装済みで、画面はありません。
+- Windows版の実装。プラットフォーム固有の作業が要るのは、2章(Claude Codeが認証情報を置く場所)と、画面の層だけです。この文書のそれ以外の部分はそのまま当てはまるように書いています。着手する前に、Windowsでの認証情報の場所を確かめてください。
