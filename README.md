@@ -1,6 +1,9 @@
 # ClaudeGauge
 
-Claudeの使用状況をメニューバーに表示する、macOS用の小さなアプリです。
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/9cd79232-ef21-42a2-91df-ac153f4cdb54" controls></video>
+  <p>Claudeの使用状況をメニューバーに表示する、macOS用の小さなアプリです。</p>
+</div>
 
 > [!WARNING]
 > これは非公式のアプリです。Anthropic社のClaudeとは無関係です。使用する場合は自己責任で使用してください。
