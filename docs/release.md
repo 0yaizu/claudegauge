@@ -58,6 +58,13 @@ ClaudeGaugeのリリースは、GitHub Actionsで行います。
 5. `ditto`でzipを作り、`shasum -a 256`でチェックサムを作ります。zipを展開して、署名が有効なことを確かめます。
 6. `actions/attest`で、ビルドの由来の証明(attestation)を付けます。
 7. `gh release upload --clobber`で、リリースに添付します。同名のファイルは上書きします。
+8. 安定版(`v1.2.3`の形)のときだけ、`notify-tap`ジョブが、Homebrewのtap(`0yaizu/homebrew-tap`)の`bump.yml`を起動します。tapは、最新の安定版を自分で調べ、zipの由来の証明(attestation)を検証して、caskの`version`と`sha256`を更新します(詳細は後述の`notify-tap`)。プレビュー版では動きません。
+
+### `notify-tap`(`release.yml`のジョブ)
+
+`build`の完了後に、安定版のときだけ動きます。環境`tap-dispatch`の秘密`TAP_DISPATCH_TOKEN`(`0yaizu/homebrew-tap`だけを対象にした、`Actions: Read and write`のfine-grained PAT)で、`gh workflow run bump.yml`を呼びます。何も渡しません。
+環境`tap-dispatch`は、`v[0-9]*`のタグから動くジョブだけに限っています。`pre-v`、`beta-v`のタグでは、環境に入れず、ジョブは動きません(条件で、そもそも起動しません)。
+トークンの有効期限は1年までなので、切れる前に作り直して、`gh secret set TAP_DISPATCH_TOKEN --env tap-dispatch --repo 0yaizu/claudegauge`で登録し直します。
 
 ### `dependabot.yml`
 

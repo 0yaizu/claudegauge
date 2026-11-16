@@ -87,3 +87,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release upload "$TAG" "$ZIP_NAME" "$ZIP_NAME.sha256" --clobber
+
+  # 安定版だけ、Homebrew の tap の cask 更新を起動する。tap 側が、最新の安定版を自分で調べるので、何も渡さない。
+  # トークンを読めるのは、このジョブだけ。環境 tap-dispatch は、v* のタグから動くジョブに限っている。
+  notify-tap:
+    needs: build
+    if: ${{ !github.event.release.prerelease && startsWith(github.event.release.tag_name, 'v') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: tap-dispatch
+    permissions: {}
+    steps:
+      - name: tap の cask 更新を起動する
+        env:
+          GH_TOKEN: ${{ secrets.TAP_DISPATCH_TOKEN }}
+        run: gh workflow run bump.yml --repo 0yaizu/homebrew-tap --ref main
