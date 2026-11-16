@@ -6,7 +6,6 @@ struct PopoverView: View {
     @State private var showsSettings = false
 
     var body: some View {
-        // 残り時間と Reload の可否は時間で変わるので、30 秒ごとに描き直す。
         TimelineView(.periodic(from: .now, by: 30)) { context in
             content(now: context.date)
         }
@@ -59,8 +58,9 @@ struct PopoverView: View {
                     Button {
                         Task { await model.reload() }
                     } label: {
-                        Label("Reload", systemImage: "arrow.clockwise")
+                        reloadLabel
                     }
+                    .accessibilityLabel("Reload")
                     .disabled(!canReload(now: now))
 
                     Button {
@@ -76,6 +76,16 @@ struct PopoverView: View {
                 .buttonStyle(.glass)
                 .controlSize(.regular)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var reloadLabel: some View {
+				/// トークンの期限切れの表示がある際、Reloadの文字が潰れてしまうのを防ぐために、ボタンのみの表示にする。
+        if model.state.showsRefreshNotice {
+            Image(systemName: "arrow.clockwise")
+        } else {
+            Label("Reload", systemImage: "arrow.clockwise")
         }
     }
 
