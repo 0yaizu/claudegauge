@@ -27,7 +27,6 @@ struct WindowRowView: View {
                 }
                 .font(.system(size: 12).monospacedDigit())
                 .lineLimit(1)
-                .minimumScaleFactor(0.85)
             }
 
             UsageBar(fraction: row.fraction, level: row.level)
