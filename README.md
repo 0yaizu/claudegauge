@@ -1,6 +1,22 @@
 # ClaudeGauge
 
 <div align="center">
+
+[![Release][release-badge]][release-url] [![CI][ci-badge]][ci-url] [![License][license-badge]][license-url]
+
+![Platform][platform-badge]
+
+</div>
+
+[release-badge]: https://img.shields.io/github/v/release/0yaizu/claudegauge?style=for-the-badge&logo=github&color=ff6b6b
+[release-url]: https://github.com/0yaizu/claudegauge/releases/latest
+[ci-badge]: https://img.shields.io/github/actions/workflow/status/0yaizu/claudegauge/ci.yml?style=for-the-badge&label=CI
+[ci-url]: https://github.com/0yaizu/claudegauge/actions/workflows/ci.yml
+[license-badge]: https://img.shields.io/github/license/0yaizu/claudegauge?style=for-the-badge
+[license-url]: LICENSE
+[platform-badge]: https://img.shields.io/badge/platform-macOS%2026%2B%20%7C%20Apple%20Silicon-000000?style=for-the-badge&logo=apple
+
+<div align="center">
   <video src="https://github.com/user-attachments/assets/9cd79232-ef21-42a2-91df-ac153f4cdb54" controls></video>
   <p>Claudeの使用状況をメニューバーに表示する、macOS用の小さなアプリです。</p>
 </div>
