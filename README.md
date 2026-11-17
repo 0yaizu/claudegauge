@@ -37,14 +37,33 @@
 - macOS 26以降
 - ログイン済のClaude Code CLI（v2.1.323で動作確認済）
 
-## インストール
-### 自前ダウンロード
-1. [Releases](https://github.com/0yaizu/claudegauge/releases/latest)から`ClaudeGauge-*.zip`をダウンロードします。
-2. zipを展開し、`ClaudeGauge.app`を`/Applications`に移動します。
-3. `ClaudeGauge.app`を開きます。
+## インストールとアップデート
+### Homebrew
+#### インストール
+```sh
+brew install --cask 0yaizu/tap/claudegauge
+```
 
 > [!NOTE]
 > 署名を受けていないアプリなので、初回起動時、起動を阻止される可能性があります。「システム設定」の「プライバシーとセキュリティ」から「このまま開く」を選んでください。
+
+#### アップデート
+```sh
+brew upgrade --cask claudegauge
+```
+
+### 自前ダウンロード
+#### インストール
+1. [Releases](https://github.com/0yaizu/claudegauge/releases/latest)から`ClaudeGauge-*.zip`をダウンロードします。
+2. zipを展開し、`ClaudeGauge.app`を`/Applications`に移動します。
+
+> [!NOTE]
+> 署名を受けていないアプリなので、初回起動時、起動を阻止される可能性があります。「システム設定」の「プライバシーとセキュリティ」から「このまま開く」を選んでください。
+
+#### アップデート
+1. メニューバーのアイコンから`Quit`を選び、ClaudeGaugeを終了します。
+2. [Releases](https://github.com/0yaizu/claudegauge/releases/latest)から、新しい`ClaudeGauge-*.zip`をダウンロードします。
+3. zipを展開し、`ClaudeGauge.app`を`/Applications`に上書き保存します。
 
 ## 開発環境、ビルド、テスト
 - Xcode
@@ -78,6 +97,7 @@ ClaudeGaugeは、`/usr/bin/security`コマンドを経由してKeychainを読み
 - 表示内容のカスタム設定
 - 詳細設定画面の追加
 - Windows版の作成
+- バージョンをアプリ上に表示するようにする
 
 ## ライセンス
 
