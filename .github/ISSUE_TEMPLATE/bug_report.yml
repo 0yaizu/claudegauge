@@ -1,0 +1,53 @@
+name: バグ報告
+description: 表示がおかしい、動かないなど、不具合の報告
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バグ報告に協力いただきありがとうございます！バグについて記載する前に、既に同様の問題が報告されていないか検索してみてください。
+        トークン、APIのレスポンスの本文、メールアドレスなどの認証情報や個人情報は貼らないよう気をつけてください。
+  - type: textarea
+    id: actual
+    attributes:
+      label: バグについての説明
+      description: バグの内容を簡潔に、わかりやすく書いてください。この問題についてプルリクエストを提出する予定がある場合は、説明欄にその旨を記載してください。
+    validations:
+      required: true
+  - type: checkboxes
+    id: unique_check
+    attributes:
+      label: 既存のIssueを確認しましたか？
+      description: 似たようなIssueがないか、検索して確認してください。
+      options:
+        - label: 既存のIssueに同じ内容は見つかりませんでした。
+          value: confirmed
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現の手順
+      description: バグが起きるまでの動作を記載してください。
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ClaudeGaugeのバージョン
+      description: Homebrewで入れた場合は`brew list --cask --versions claudegauge`、手動で入れた場合は、Finderでアプリを右クリックして「情報を見る」で確かめられます。
+      placeholder: 1.2.3
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: OSのバージョン
+      placeholder: macOS 26.1
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 補足
+      description: そのほか、気づいたことなどがあれば書いてください。
