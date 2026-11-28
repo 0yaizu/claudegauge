@@ -13,7 +13,7 @@ ClaudeGaugeは、Claudeのサブスクリプションの使用状況(5時間の�
 - 対象: Apple Silicon、macOS26以降。Intel Macは対象外です。
 - バンドルID: `io.github.0yaizu.ClaudeGauge`。Dockには出ません(`LSUIElement`)。
 - 言語: アプリの表示は英語です。READMEと`docs/`の文書は日本語です。ユーザーとのやり取りも日本語で行います。
-- 将来、Windows版を作る可能性があります。そのため、挙動の決まりは`docs/spec.md`に書き、`ClaudeGaugeCore`は画面に依存させません。
+- Windows版を、`windows/`で作っています(初期段階です)。挙動の決まりは`docs/spec.md`に書き、macOS版とWindows版で共有します。`ClaudeGaugeCore`は画面に依存させません。
 
 ## 絶対に守ること
 
@@ -52,6 +52,13 @@ open build/ClaudeGauge.app
 scripts/test-release-notes.sh       # リリースノート用スクリプトのテスト(bashとjqが要る)
 ```
 
+Windows版のコマンドです。Rust1.100以降が必要です。
+
+```sh
+cd windows
+cargo test                          # claudegauge-coreのテスト
+```
+
 ## コードの配置構造
 
 SwiftPM、swift-tools-version6.2、Swift6です。ターゲットは3つです。
@@ -74,6 +81,7 @@ SwiftPM、swift-tools-version6.2、Swift6です。ターゲットは3つです�
 - `scripts/`: `bundle.sh`(ビルドと署名)、`release-notes.sh`と`test-release-notes.sh`(リリースノート)。
 - `.github/workflows/`: `ci.yml`、`release.yml`、`draft-release.yml`。`.github/release-notes-*.md`はリリースノートの雛形です。
 - `Resources/`: `Info.plist`とアイコン。`design/`はアイコンの元データです。
+- `windows/`: Windows版のCargoのワークスペース。今は、画面に依存しないロジックを置く`claudegauge-core`だけがあり、中身は空です。
 
 ## 開発の進め方
 
