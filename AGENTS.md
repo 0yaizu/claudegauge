@@ -52,7 +52,7 @@ open build/ClaudeGauge.app
 scripts/test-release-notes.sh       # リリースノート用スクリプトのテスト(bashとjqが要る)
 ```
 
-Windows版のコマンドです。Rust1.100以降が要ります。
+Windows版のコマンドです。Rust1.100以降が必要です。
 
 ```sh
 cd windows
