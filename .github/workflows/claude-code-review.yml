@@ -2,7 +2,7 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, reopened]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
@@ -36,10 +36,60 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            このPRを、ゆるめの方針でレビューしてください。
+            細かい指摘で読む人を疲れさせないことを、網羅することより優先します。
+
+            進め方:
+            1. `gh pr view` と `gh pr diff` で変更を確認する。
+            2. 変更の周辺コードと、リポジトリの `CLAUDE.md`(`AGENTS.md`)を読む。
+            3. 指摘があれば、該当の行にインラインコメントを付ける。
+            4. 最後に `gh pr comment` で、結果を1〜3行でまとめる。
+
+            指摘してよいもの(マージ前に直さないと困るものだけ):
+            - 実際に起きる不具合、クラッシュ、データの損失
+            - `AGENTS.md`の「認証情報」の決まりの違反
+              (refreshTokenを読む・使う・保存する、`mcpOAuth`を読む、トークンやAPIレスポンスの本文をログやエラーに出す、トークンをメモリやディスクに残す)
+            - 非公式APIの警告(READMEの注意書き)を消す、弱める変更
+            - Swift6の並行性の検査を壊す変更
+
+            名前に対して役割が過剰なものは、「IMO:」を付けて指摘してよい(任意の提案なので、直さなくてもマージできる):
+            - 関数名や変数名から想像できない処理や副作用を、まとめて背負っている
+              (例: `fetchUsage`が、取得に加えて保存や画面の更新までする)
+            - 「何をするか」を1つの名前で言えず、`and`や`also`で説明したくなる
+            - 名前の指す範囲より、実際の役割が広い、または別物になっている
+            名前の好みや言い換えの提案は対象外です。役割と名前のずれを、具体的に説明できるものだけにしてください。
+
+            不要なコメントは、「MUST:」を付けて指摘してください(マージ前に消してほしいもの):
+            - コードを見れば分かることを、言い換えただけのコメント
+              (例: `// ユーザーを取得する` が `fetchUser()` の上にある、`// カウントを1増やす` が `count += 1` の横にある)
+            - 変更の履歴や作業の経緯を書いたコメント(「〜を追加」「〜から変更」など。履歴はコミットとPRに書く)
+            - コメントアウトされた古いコード
+            残すコメント: コードから読み取れない理由や制約(なぜそうしたか、何を避けるためか)を書いたもの。
+            同じ種類の不要なコメントが複数あるときは、1件にまとめて、該当する場所を並べてください。
+            優先度は、不具合と認証情報の指摘の次です。
+
+            コメントの文章が、正確さを優先して読みにくくなっているものは、「IMO:」を付けて指摘してよい:
+            - 例外や条件を全部書いて長くなり、一読で要点が分からない
+            - 正確さを少し落としても、短く言える
+            指摘するときは、短く読みやすくした案を添えてください。
+
+            指摘しないもの:
+            - 書式、コメントやドキュメントの不足といった好みの話
+            - 関数やファイルの長さ、ネストの深さ
+            - テストを足す提案、将来の拡張への備え、「〜するとよいかも」という提案
+            - 変更していない箇所の問題
+            - 起きる条件を具体的に言えない、仮定の話
+
+            守ること:
+            - 確信が9割以上あり、入力・状態・結果を具体的に説明できるものだけを指摘する。
+            - 指摘は多くても3件にする。それ以上あるときは、重大なものから3件だけ選ぶ。
+            - 指摘がなければ、「問題は見つかりませんでした」と1行だけコメントする。無理に指摘を作らない。
+            - 日本語で書く。1件につき2〜3文で、何が起きるかと直し方を書く。
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
